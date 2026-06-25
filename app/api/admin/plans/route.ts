@@ -1,0 +1,126 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+
+const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+async function checkAuth(request: NextRequest): Promise<boolean> {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) return false;
+  const token = authHeader.replace('Bearer ', '');
+  if (token === DEFAULT_PASSWORD) return true;
+  const { data } = await supabase.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
+  return !!(data?.value && token === data.value);
+}
+
+export async function GET(request: NextRequest) {
+  if (!await checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from('membership_plans')
+    .select('*')
+    .order('sort_order');
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ plans: data });
+}
+
+export async function POST(request: NextRequest) {
+  if (!await checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { plan_key, name, price, duration, duration_days, badge, badge_color, features, sort_order, is_active } = body;
+
+    if (!plan_key || !name || price === undefined || !duration || !duration_days) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('membership_plans')
+      .insert({
+        plan_key,
+        name,
+        price,
+        duration,
+        duration_days,
+        badge: badge || null,
+        badge_color: badge_color || 'blue',
+        features: features || [],
+        sort_order: sort_order || 0,
+        is_active: is_active !== false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ plan: data });
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  if (!await checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id, ...updates } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('membership_plans')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ plan: data });
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!await checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from('membership_plans')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
