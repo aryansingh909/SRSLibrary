@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useSettings } from '@/hooks/use-settings';
 import type { CourseData } from '@/app/courses/[slug]/page';
 
 const schema = z.object({
@@ -25,6 +26,7 @@ type FormData = z.infer<typeof schema>;
 export default function CourseDetailPage({ course }: { course: CourseData }) {
   const [submitted, setSubmitted] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const { settings } = useSettings();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -218,8 +220,8 @@ export default function CourseDetailPage({ course }: { course: CourseData }) {
               )}
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-xs text-center text-muted-foreground">Or call us directly</p>
-                <a href="tel:+919999999999" className="block text-center text-blue-600 font-semibold text-sm mt-1 hover:text-blue-700">
-                  +91 99999 99999
+                <a href={`tel:${(settings.phone_primary || '+919999999999').replace(/\s/g, '')}`} className="block text-center text-blue-600 font-semibold text-sm mt-1 hover:text-blue-700">
+                  {settings.phone_primary || '+91 99999 99999'}
                 </a>
               </div>
             </div>

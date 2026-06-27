@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   Inbox, Mail, Phone, GraduationCap, Calendar, Filter, X, Eye, Trash2,
-  MessageCircle, BookOpen, RefreshCw, ExternalLink, Search, ChevronLeft
+  MessageCircle, BookOpen, RefreshCw, ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 const DEFAULT_PASSWORD = 'admin123';
@@ -68,6 +67,11 @@ const statusColor = (status: string) => {
   return 'bg-gray-500 text-white';
 };
 
+function getAuthHeaders() {
+  const pw = sessionStorage.getItem('adminSessionPw') || DEFAULT_PASSWORD;
+  return { 'Authorization': `Bearer ${pw}` };
+}
+
 export default function EnquirePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -98,49 +102,42 @@ export default function EnquirePage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadEnquiries(), loadContacts(), loadMemberships()]);
+      const res = await fetch('/api/admin/enquiries', {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast.error('Session expired. Please login again.');
+          setIsAuthenticated(false);
+          sessionStorage.removeItem('adminAuth');
+          sessionStorage.removeItem('adminSessionPw');
+        }
+        return;
+      }
+      const data = await res.json();
+      setEnquiries(data.enquiries || []);
+      setContacts(data.contacts || []);
+      setMemberships(data.memberships || []);
+    } catch (err) {
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadEnquiries = async () => {
-    const { data, error } = await supabase
-      .from('degree_enquiries')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setEnquiries(data as Enquiry[]);
-  };
-
-  const loadContacts = async () => {
-    const { data, error } = await supabase
-      .from('contact_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setContacts(data as ContactRequest[]);
-  };
-
-  const loadMemberships = async () => {
-    const { data, error } = await supabase
-      .from('library_memberships')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setMemberships(data as Membership[]);
-  };
-
   const handleLogin = async () => {
     try {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('key', 'admin_password')
-        .maybeSingle();
-      const validPassword = data?.value || DEFAULT_PASSWORD;
-      if (password === validPassword) {
+      const res = await fetch('/api/admin/enquiries', {
+        headers: { 'Authorization': `Bearer ${password}` },
+      });
+      if (res.ok) {
         setIsAuthenticated(true);
         sessionStorage.setItem('adminAuth', 'true');
         sessionStorage.setItem('adminSessionPw', password);
-        loadAllData();
+        const data = await res.json();
+        setEnquiries(data.enquiries || []);
+        setContacts(data.contacts || []);
+        setMemberships(data.memberships || []);
       } else {
         toast.error('Invalid password');
       }
@@ -150,69 +147,93 @@ export default function EnquirePage() {
   };
 
   const updateEnquiryStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from('degree_enquiries')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (!error) {
+    const res = await fetch('/api/admin/enquiries', {
+      method: 'PUT',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'enquiry', id, status }),
+    });
+    if (res.ok) {
       setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
       if (selectedEnquiry?.id === id) setSelectedEnquiry(prev => prev ? { ...prev, status } : prev);
       toast.success('Status updated');
-    } else toast.error('Failed to update status');
+    } else {
+      toast.error('Failed to update status');
+    }
   };
 
   const updateContactStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from('contact_requests')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (!error) {
+    const res = await fetch('/api/admin/enquiries', {
+      method: 'PUT',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'contact', id, status }),
+    });
+    if (res.ok) {
       setContacts(prev => prev.map(c => c.id === id ? { ...c, status } : c));
       if (selectedContact?.id === id) setSelectedContact(prev => prev ? { ...prev, status } : prev);
       toast.success('Status updated');
-    } else toast.error('Failed to update status');
+    } else {
+      toast.error('Failed to update status');
+    }
   };
 
   const updateMembershipStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from('library_memberships')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (!error) {
+    const res = await fetch('/api/admin/enquiries', {
+      method: 'PUT',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'membership', id, status }),
+    });
+    if (res.ok) {
       setMemberships(prev => prev.map(m => m.id === id ? { ...m, status } : m));
       if (selectedMembership?.id === id) setSelectedMembership(prev => prev ? { ...prev, status } : prev);
       toast.success('Status updated');
-    } else toast.error('Failed to update status');
+    } else {
+      toast.error('Failed to update status');
+    }
   };
 
   const deleteEnquiry = async (id: string) => {
     if (!confirm('Delete this enquiry?')) return;
-    const { error } = await supabase.from('degree_enquiries').delete().eq('id', id);
-    if (!error) {
+    const res = await fetch(`/api/admin/enquiries?type=enquiry&id=${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
       setEnquiries(prev => prev.filter(e => e.id !== id));
       if (selectedEnquiry?.id === id) setSelectedEnquiry(null);
       toast.success('Enquiry deleted');
-    } else toast.error('Failed to delete');
+    } else {
+      toast.error('Failed to delete');
+    }
   };
 
   const deleteContact = async (id: string) => {
     if (!confirm('Delete this contact request?')) return;
-    const { error } = await supabase.from('contact_requests').delete().eq('id', id);
-    if (!error) {
+    const res = await fetch(`/api/admin/enquiries?type=contact&id=${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
       setContacts(prev => prev.filter(c => c.id !== id));
       if (selectedContact?.id === id) setSelectedContact(null);
       toast.success('Contact deleted');
-    } else toast.error('Failed to delete');
+    } else {
+      toast.error('Failed to delete');
+    }
   };
 
   const deleteMembership = async (id: string) => {
     if (!confirm('Delete this membership record?')) return;
-    const { error } = await supabase.from('library_memberships').delete().eq('id', id);
-    if (!error) {
+    const res = await fetch(`/api/admin/enquiries?type=membership&id=${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
       setMemberships(prev => prev.filter(m => m.id !== id));
       if (selectedMembership?.id === id) setSelectedMembership(null);
       toast.success('Membership deleted');
-    } else toast.error('Failed to delete');
+    } else {
+      toast.error('Failed to delete');
+    }
   };
 
   const formatDate = (dateStr: string) =>
@@ -265,7 +286,7 @@ export default function EnquirePage() {
             />
             <Button className="w-full" onClick={handleLogin}>Login</Button>
             <Link href="/admin" className="block text-center text-sm text-muted-foreground hover:text-foreground">
-              Go to Content Management →
+              Go to Content Management &rarr;
             </Link>
           </CardContent>
         </Card>
@@ -348,7 +369,9 @@ export default function EnquirePage() {
 
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
             <Input
               placeholder="Search by name, email, phone..."
               className="pl-9"
@@ -366,7 +389,9 @@ export default function EnquirePage() {
             {activeTab === 'enquiries' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <div className="w-4 h-4 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
                   <span className="text-sm font-medium">Filter:</span>
                   <button
                     onClick={() => setEnquiryFilter('all')}
@@ -440,7 +465,9 @@ export default function EnquirePage() {
             {activeTab === 'contacts' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <div className="w-4 h-4 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
                   <span className="text-sm font-medium">Filter:</span>
                   <button
                     onClick={() => setContactFilter('all')}
@@ -511,7 +538,9 @@ export default function EnquirePage() {
             {activeTab === 'memberships' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <div className="w-4 h-4 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  </div>
                   <span className="text-sm font-medium">Filter:</span>
                   <button
                     onClick={() => setMembershipFilter('all')}
@@ -556,7 +585,7 @@ export default function EnquirePage() {
                                 <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{m.email}</span>
                                 <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{m.phone}</span>
                                 {m.seat_number && <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" />Seat #{m.seat_number}</span>}
-                                {m.amount && <span>₹{m.amount}</span>}
+                                {m.amount && <span>&pound;{m.amount}</span>}
                                 <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatDate(m.created_at)}</span>
                               </div>
                             </div>
@@ -656,7 +685,7 @@ export default function EnquirePage() {
               <div><Label className="font-semibold">Phone:</Label><p>{selectedMembership.phone}</p></div>
               <div><Label className="font-semibold">Plan:</Label><p className="capitalize">{selectedMembership.plan}</p></div>
               {selectedMembership.seat_number && <div><Label className="font-semibold">Seat Number:</Label><p>{selectedMembership.seat_number}</p></div>}
-              {selectedMembership.amount && <div><Label className="font-semibold">Amount:</Label><p>₹{selectedMembership.amount}</p></div>}
+              {selectedMembership.amount && <div><Label className="font-semibold">Amount:</Label><p>&pound;{selectedMembership.amount}</p></div>}
               <div><Label className="font-semibold">Payment Status:</Label><p className="capitalize">{selectedMembership.payment_status}</p></div>
               <div><Label className="font-semibold">Status:</Label><p className="capitalize">{selectedMembership.status}</p></div>
               {selectedMembership.start_date && <div><Label className="font-semibold">Start Date:</Label><p>{selectedMembership.start_date}</p></div>}
