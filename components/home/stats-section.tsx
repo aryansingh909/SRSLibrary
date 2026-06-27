@@ -7,7 +7,7 @@ export default function StatsSection() {
   const { settings } = useSettings();
 
   const stats = [
-    { icon: Users, value: settings.stat_seats || '40', label: 'Study Seats', sub: 'Individual desks', color: 'bg-blue-600' },
+    { icon: Users, value: settings.stat_seats || 'Premium', label: 'Study Seats', sub: 'Individual desks', color: 'bg-blue-600' },
     { icon: Zap, value: settings.stat_power_value || '24/7', label: settings.stat_power_label || 'Power Backup', sub: 'Uninterrupted study', color: 'bg-amber-500' },
     { icon: Wifi, value: settings.stat_wifi_value || '100+', label: settings.stat_wifi_label || 'Mbps WiFi', sub: 'High-speed internet', color: 'bg-green-500' },
     { icon: ShieldCheck, value: settings.stat_cctv_value || 'CCTV', label: settings.stat_cctv_label || 'Surveillance', sub: 'Full security coverage', color: 'bg-rose-500' },

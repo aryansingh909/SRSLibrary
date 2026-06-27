@@ -33,10 +33,10 @@ export default function ServicesSection() {
               </div>
               <h3 className="text-2xl font-bold mb-3">{settings.library_title || 'Premium Study Library'}</h3>
               <p className="text-blue-100 leading-relaxed mb-6">
-                {settings.library_description || '40 comfortable air-conditioned study seats with individual desks, high-speed WiFi, CCTV surveillance, dedicated parking, and 24x7 power backup. The ideal environment for serious learners.'}
+                {settings.library_description || 'Comfortable air-conditioned premium study seats with individual desks, high-speed WiFi, CCTV surveillance, dedicated parking, and 24x7 power backup. The ideal environment for serious learners.'}
               </p>
               <ul className="grid grid-cols-2 gap-2 mb-8">
-                {['AC Environment', 'High-Speed WiFi', '40 Seats', 'CCTV 24x7', 'Power Backup', 'Quiet Zone', 'Clean Washrooms', 'Parking'].map((f) => (
+                {['AC Environment', 'High-Speed WiFi', 'Premium Seats', 'CCTV 24x7', 'Power Backup', 'Quiet Zone', 'Clean Washrooms', 'Parking'].map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-blue-100">
                     <div className="w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
                     {f}

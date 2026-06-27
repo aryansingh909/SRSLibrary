@@ -10,7 +10,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'SRS Library — Premium Study Library & Online Degree Admissions',
   description:
-    'Join SRS Library: 40-seat premium AC study library with high-speed WiFi, CCTV, 24x7 power backup + expert online degree admission guidance for BCA, BBA, MBA and more from Mangalayatan University.',
+    'Join SRS Library: premium AC study library with high-speed WiFi, CCTV, 24x7 power backup + expert online degree admission guidance for BCA, BBA, MBA and more from Mangalayatan University.',
 };
 
 export default function HomePage() {

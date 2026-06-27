@@ -55,7 +55,7 @@ const FEATURES = [
   },
   {
     icon: Users,
-    title: '40 Individual Desks',
+    title: 'Premium Individual Desks',
     description: 'Ergonomically designed individual study desks with personal charging points at every seat.',
     color: 'text-indigo-600',
     bg: 'bg-indigo-50 dark:bg-indigo-950',

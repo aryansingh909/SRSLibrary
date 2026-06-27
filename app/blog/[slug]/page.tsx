@@ -103,7 +103,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
                 At SRS Library, we are committed to providing not just a premium study environment but also expert guidance to help you make the most of your academic journey. Whether you are preparing for competitive exams, pursuing an online degree, or looking for a quiet place to focus — we are here for you.
               </p>
               <p className="leading-relaxed">
-                Our library is equipped with 40 individual AC study seats, high-speed WiFi, CCTV surveillance, 24x7 power backup, clean washrooms, and dedicated parking — everything you need to study without distractions.
+                Our library is equipped with premium individual AC study seats, high-speed WiFi, CCTV surveillance, 24x7 power backup, clean washrooms, and dedicated parking — everything you need to study without distractions.
               </p>
               <p className="leading-relaxed">
                 For those looking to advance their education, we offer expert counselling for online degree admissions from Mangalayatan University — a UGC-approved institution offering programs like BCA, BBA, BA, MBA, MA, and M.Com.

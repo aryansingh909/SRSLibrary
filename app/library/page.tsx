@@ -24,7 +24,7 @@ const AMENITIES = [
   { icon: ParkingSquare, label: 'Free Parking' },
   { icon: Bath, label: 'Clean Washrooms' },
   { icon: Volume2, label: 'Silent Zone' },
-  { icon: Users, label: '40 Seats' },
+  { icon: Users, label: 'Premium Seats' },
 ];
 
 const DEFAULT_PLANS = [
@@ -89,7 +89,7 @@ export default function LibraryPage() {
             Your Perfect Study Space<br />Awaits You
           </h1>
           <p className="text-blue-100 text-lg max-w-2xl mx-auto mb-8">
-            40 premium AC study seats, high-speed WiFi, CCTV security, 24x7 power backup and a completely peaceful environment — designed for serious learners.
+            Premium AC study seats, high-speed WiFi, CCTV security, 24x7 power backup and a completely peaceful environment — designed for serious learners.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {AMENITIES.map(({ icon: Icon, label }) => (
@@ -245,7 +245,7 @@ export default function LibraryPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             <div className="p-6">
-              <p className="text-4xl font-bold text-blue-600">{settings.stat_seats || '40'}</p>
+              <p className="text-4xl font-bold text-blue-600">{settings.stat_seats || 'Premium'}</p>
               <p className="text-muted-foreground mt-1">Study Seats</p>
             </div>
             <div className="p-6">

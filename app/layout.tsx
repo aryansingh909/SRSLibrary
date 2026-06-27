@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: '%s | SRS Library',
   },
   description:
-    'SRS Library offers a premium air-conditioned study library with 40 seats, high-speed WiFi, CCTV security, and expert guidance for online degree admissions from Mangalayatan University.',
+    'SRS Library offers a premium air-conditioned study library with premium seats, high-speed WiFi, CCTV security, and expert guidance for online degree admissions from Mangalayatan University.',
   keywords: [
     'study library',
     'online degree',
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     siteName: 'SRS Library',
     title: 'SRS Library — Premium Study Library & Online Degree Admissions',
     description:
-      'Premium air-conditioned study library with 40 seats + expert online degree admissions guidance from Mangalayatan University.',
+      'Premium air-conditioned study library with premium seats + expert online degree admissions guidance from Mangalayatan University.',
   },
   twitter: {
     card: 'summary_large_image',

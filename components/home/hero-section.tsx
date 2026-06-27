@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BookOpen, GraduationCap, Star, Shield, Wifi, Zap } from 'lucide-react';
+import { ArrowRight, BookOpen, GraduationCap, Star, Shield, Wifi, Zap, AirVent, ParkingSquare, Bath, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/hooks/use-settings';
@@ -10,9 +10,13 @@ export default function HeroSection() {
   const { settings } = useSettings();
 
   const features = [
+    { icon: AirVent, label: 'Fully AC' },
     { icon: Wifi, label: 'High-Speed WiFi' },
     { icon: Shield, label: 'CCTV Security' },
     { icon: Zap, label: '24x7 Power Backup' },
+    { icon: ParkingSquare, label: 'Free Parking' },
+    { icon: Bath, label: 'Clean Washrooms' },
+    { icon: Volume2, label: 'Silent Zone' },
   ];
 
   return (
@@ -42,7 +46,7 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
-              {settings.hero_description || 'Experience the perfect study environment — premium AC library with 40 individual seats, high-speed WiFi, and expert guidance for online degree admissions from Mangalayatan University.'}
+              {settings.hero_description || 'Experience the perfect study environment — premium AC library with premium seats, high-speed WiFi, and expert guidance for online degree admissions from Mangalayatan University.'}
             </p>
 
             {/* Feature pills */}
@@ -132,8 +136,8 @@ export default function HeroSection() {
                     <BookOpen className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-foreground">{settings.hero_stat_seats || '40'}</p>
-                    <p className="text-xs text-muted-foreground">Premium Seats</p>
+                    <p className="text-2xl font-bold text-foreground">{settings.hero_stat_seats || 'Premium'}</p>
+                    <p className="text-xs text-muted-foreground">Study Seats</p>
                   </div>
                 </div>
               </div>

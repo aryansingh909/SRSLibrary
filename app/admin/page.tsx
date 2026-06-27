@@ -231,7 +231,7 @@ const SETTINGS_GROUPS: Record<string, SettingsGroup> = {
     color: 'bg-amber-600',
     sections: [
       { key: 'homepage_stats', label: 'Homepage Statistics', fields: [
-        { key: 'stat_seats', label: 'Seats', type: 'text', help: 'Number of seats (e.g., 40)' },
+        { key: 'stat_seats', label: 'Seats', type: 'text', help: 'Seat display value (e.g., Premium)' },
         { key: 'stat_members', label: 'Members', type: 'text', help: 'Number of members (e.g., 500+)' },
         { key: 'stat_rating', label: 'Rating', type: 'text', help: 'Star rating (e.g., 5.0)' },
         { key: 'stat_years', label: 'Years Running', type: 'text', help: 'Years in business (e.g., 3+)' },
