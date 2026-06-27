@@ -47,9 +47,13 @@ export function ImageUpload({
       formData.append('file', file);
       formData.append('folder', folder);
 
+      const headers = authHeaders();
+      // Don't include Content-Type for FormData uploads - browser sets it automatically with correct boundary
+      const uploadHeaders: Record<string, string> = { Authorization: headers['Authorization'] || headers['authorization'] || '' };
+
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        headers: authHeaders(),
+        headers: uploadHeaders,
         body: formData,
       });
 

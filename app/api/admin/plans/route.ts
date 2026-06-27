@@ -7,9 +7,33 @@ async function checkAuth(request: NextRequest): Promise<boolean> {
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return false;
   const token = authHeader.replace('Bearer ', '');
+  if (!token) return false;
+
+  // Check against default password
   if (token === DEFAULT_PASSWORD) return true;
-  const { data } = await supabaseServer.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
-  return !!(data?.value && token === data.value);
+
+  // Check against database-stored password
+  try {
+    const { data, error } = await supabaseServer
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'admin_password')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Auth check error:', error);
+      return false;
+    }
+
+    if (data?.value && token === data.value) {
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.error('Auth check exception:', err);
+    return false;
+  }
 }
 
 export async function GET(request: NextRequest) {
