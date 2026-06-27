@@ -208,7 +208,7 @@ export default function DegreesPage() {
             {[
               { step: '01', title: 'Enquire', desc: 'Fill the form or call us. Our counsellor will guide you on course selection.' },
               { step: '02', title: 'Apply', desc: 'Submit your application form with required documents online.' },
-              { step: '03', title: 'Pay Fee', desc: 'Pay the admission fee securely through our payment gateway.' },
+              { step: '03', title: 'Pay Fee', desc: 'Our counsellor will share fee details and guide you through the payment process.' },
               { step: '04', title: 'Start Learning', desc: 'Receive your student ID and access the LMS to begin your degree.' },
             ].map(({ step, title, desc }) => (
               <div key={step} className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-border shadow-sm relative">
