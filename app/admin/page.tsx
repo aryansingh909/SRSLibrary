@@ -6,7 +6,8 @@ import {
   Camera, Star, Save, Plus, Trash2, Edit, X, Check,
   Facebook, Instagram, Youtube, Twitter, Linkedin, RefreshCw, Layout,
   Home, Library, Award, MessageSquare, Palette, Search, Image as ImageIcon,
-  Menu, ChevronLeft, ExternalLink, Eye, AlertCircle, HelpCircle, FileText, Upload
+  Menu, ChevronLeft, ExternalLink, Eye, AlertCircle, HelpCircle, FileText, Upload,
+  Inbox, MessageCircle, Calendar, Filter
 } from 'lucide-react';
 import { ImageUpload } from '@/components/admin/image-upload';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,29 @@ type GalleryImage = { id: string; url: string; caption: string | null; category:
 type Review = { id: string; name: string; role: string | null; rating: number; review: string; service: string | null; approved: boolean; avatar_url: string | null; sort_order: number; };
 type NavItem = { id: string; label: string; href: string; parent_id: string | null; sort_order: number; is_active: boolean; open_in_new_tab: boolean; };
 type FAQ = { id: string; question: string; answer: string; category: string; sort_order: number; is_active: boolean; };
+type Enquiry = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  course: string;
+  qualification: string | null;
+  message: string | null;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+};
+type ContactRequest = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  subject: string | null;
+  message: string;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+};
 
 // Settings groups for organized editing
 const SETTINGS_GROUPS: Record<string, SettingsGroup> = {
@@ -259,6 +283,11 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [navItems, setNavItems] = useState<NavItem[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [contacts, setContacts] = useState<ContactRequest[]>([]);
+  const [enquiryFilter, setEnquiryFilter] = useState<string>('all');
+  const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactRequest | null>(null);
 
   // Change password state
   const [cpCurrent, setCpCurrent] = useState('');
@@ -316,6 +345,8 @@ export default function AdminPage() {
         loadReviews(),
         loadNavItems(),
         loadFaqs(),
+        loadEnquiries(),
+        loadContacts(),
       ]);
     } finally {
       setLoading(false);
@@ -360,6 +391,74 @@ export default function AdminPage() {
   const loadFaqs = async () => {
     const { data, error } = await supabase.from('faqs').select('*').order('sort_order');
     if (!error && data) setFaqs(data);
+  };
+
+  const loadEnquiries = async () => {
+    const { data, error } = await supabase
+      .from('degree_enquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) setEnquiries(data as Enquiry[]);
+  };
+
+  const loadContacts = async () => {
+    const { data, error } = await supabase
+      .from('contact_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) setContacts(data as ContactRequest[]);
+  };
+
+  const updateEnquiryStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from('degree_enquiries')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (!error) {
+      setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
+      if (selectedEnquiry?.id === id) setSelectedEnquiry(prev => prev ? { ...prev, status } : prev);
+      toast.success('Status updated');
+    } else {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const updateContactStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from('contact_requests')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (!error) {
+      setContacts(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+      if (selectedContact?.id === id) setSelectedContact(prev => prev ? { ...prev, status } : prev);
+      toast.success('Status updated');
+    } else {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const deleteEnquiry = async (id: string) => {
+    if (!confirm('Delete this enquiry?')) return;
+    const { error } = await supabase.from('degree_enquiries').delete().eq('id', id);
+    if (!error) {
+      setEnquiries(prev => prev.filter(e => e.id !== id));
+      if (selectedEnquiry?.id === id) setSelectedEnquiry(null);
+      toast.success('Enquiry deleted');
+    } else {
+      toast.error('Failed to delete');
+    }
+  };
+
+  const deleteContact = async (id: string) => {
+    if (!confirm('Delete this contact request?')) return;
+    const { error } = await supabase.from('contact_requests').delete().eq('id', id);
+    if (!error) {
+      setContacts(prev => prev.filter(c => c.id !== id));
+      if (selectedContact?.id === id) setSelectedContact(null);
+      toast.success('Contact deleted');
+    } else {
+      toast.error('Failed to delete');
+    }
   };
 
   const updateSetting = (key: string, value: string) => {
@@ -664,6 +763,20 @@ export default function AdminPage() {
                 <HelpCircle className="w-5 h-5" />
                 <span className="font-medium">FAQs</span>
               </button>
+              <button onClick={() => setActiveSection('enquiries')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-left transition-colors ${activeSection === 'enquiries' ? 'bg-blue-50 dark:bg-blue-950 text-blue-600' : 'hover:bg-accent'}`}>
+                <Inbox className="w-5 h-5" />
+                <span className="font-medium">Degree Enquiries</span>
+                {enquiries.filter(e => e.status === 'new').length > 0 && (
+                  <Badge className="ml-auto bg-red-500 text-white text-xs">{enquiries.filter(e => e.status === 'new').length}</Badge>
+                )}
+              </button>
+              <button onClick={() => setActiveSection('contacts')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-left transition-colors ${activeSection === 'contacts' ? 'bg-blue-50 dark:bg-blue-950 text-blue-600' : 'hover:bg-accent'}`}>
+                <MessageCircle className="w-5 h-5" />
+                <span className="font-medium">Contact Messages</span>
+                {contacts.filter(c => c.status === 'new').length > 0 && (
+                  <Badge className="ml-auto bg-red-500 text-white text-xs">{contacts.filter(c => c.status === 'new').length}</Badge>
+                )}
+              </button>
               <button onClick={() => setActiveSection('guide')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-left transition-colors ${activeSection === 'guide' ? 'bg-blue-50 dark:bg-blue-950 text-blue-600' : 'hover:bg-accent'}`}>
                 <FileText className="w-5 h-5" />
                 <span className="font-medium">Admin Guide</span>
@@ -695,7 +808,7 @@ export default function AdminPage() {
                 {currentSection?.icon && <currentSection.icon className="w-5 h-5 text-blue-600 flex-shrink-0" />}
                 <div>
                   <h1 className="text-lg sm:text-xl font-bold text-foreground">
-                    {currentSection?.label || (activeSection === 'change_password' ? 'Change Password' : activeSection === 'memberships' ? 'Membership Plans' : activeSection === 'degrees_mgmt' ? 'Degree Programs' : activeSection === 'gallery_mgmt' ? 'Gallery Images' : activeSection === 'testimonials_mgmt' ? 'Testimonials' : activeSection === 'navigation' ? 'Navigation Menu' : activeSection === 'faqs_mgmt' ? 'FAQs' : activeSection === 'guide' ? 'Admin Guide' : 'Content Management')}
+                    {currentSection?.label || (activeSection === 'change_password' ? 'Change Password' : activeSection === 'memberships' ? 'Membership Plans' : activeSection === 'degrees_mgmt' ? 'Degree Programs' : activeSection === 'gallery_mgmt' ? 'Gallery Images' : activeSection === 'testimonials_mgmt' ? 'Testimonials' : activeSection === 'navigation' ? 'Navigation Menu' : activeSection === 'faqs_mgmt' ? 'FAQs' : activeSection === 'enquiries' ? 'Degree Enquiries' : activeSection === 'contacts' ? 'Contact Messages' : activeSection === 'guide' ? 'Admin Guide' : 'Content Management')}
                   </h1>
                   <p className="text-xs text-muted-foreground hidden sm:block">Manage your website content</p>
                 </div>
@@ -1050,6 +1163,211 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* Degree Enquiries */}
+              {activeSection === 'enquiries' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold">Degree Admission Enquiries</h2>
+                      <p className="text-sm text-muted-foreground">Students who submitted the counselling form on the Degrees page</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <select
+                        value={enquiryFilter}
+                        onChange={(e) => setEnquiryFilter(e.target.value)}
+                        className="px-3 py-1.5 rounded-md border border-input bg-background text-sm"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="new">New</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="enrolled">Enrolled</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {enquiries.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        <Inbox className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>No enquiries yet. When students submit the counselling form, they will appear here.</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-4">
+                      {enquiries
+                        .filter(e => enquiryFilter === 'all' || e.status === enquiryFilter)
+                        .map((enquiry) => (
+                          <Card key={enquiry.id} className={enquiry.status === 'new' ? 'border-blue-500 border-2' : ''}>
+                            <CardContent className="py-4">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-base">{enquiry.name}</span>
+                                    <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">{enquiry.course}</Badge>
+                                    <Badge className={
+                                      enquiry.status === 'new' ? 'bg-blue-500 text-white' :
+                                      enquiry.status === 'contacted' ? 'bg-amber-500 text-white' :
+                                      enquiry.status === 'enrolled' ? 'bg-green-500 text-white' :
+                                      enquiry.status === 'rejected' ? 'bg-red-500 text-white' :
+                                      'bg-gray-500 text-white'
+                                    }>{enquiry.status}</Badge>
+                                  </div>
+                                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{enquiry.email}</span>
+                                    <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{enquiry.phone}</span>
+                                    {enquiry.qualification && <span className="flex items-center gap-1"><GraduationCap className="w-3.5 h-3.5" />{enquiry.qualification}</span>}
+                                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(enquiry.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                  </div>
+                                  {enquiry.message && (
+                                    <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-2">{enquiry.message}</p>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-2 sm:items-end">
+                                  <select
+                                    value={enquiry.status}
+                                    onChange={(e) => updateEnquiryStatus(enquiry.id, e.target.value)}
+                                    className="px-2 py-1 rounded-md border border-input bg-background text-xs"
+                                  >
+                                    <option value="new">New</option>
+                                    <option value="contacted">Contacted</option>
+                                    <option value="enrolled">Enrolled</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="closed">Closed</option>
+                                  </select>
+                                  <div className="flex gap-1">
+                                    <Button variant="ghost" size="sm" onClick={() => setSelectedEnquiry(enquiry)}><Eye className="w-4 h-4" /></Button>
+                                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => deleteEnquiry(enquiry.id)}><Trash2 className="w-4 h-4" /></Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Contact Messages */}
+              {activeSection === 'contacts' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold">Contact Form Messages</h2>
+                    <p className="text-sm text-muted-foreground">Messages submitted through the Contact page form</p>
+                  </div>
+
+                  {contacts.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>No contact messages yet.</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-4">
+                      {contacts.map((contact) => (
+                        <Card key={contact.id} className={contact.status === 'new' ? 'border-blue-500 border-2' : ''}>
+                          <CardContent className="py-4">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-base">{contact.name}</span>
+                                  {contact.subject && <Badge variant="outline">{contact.subject}</Badge>}
+                                  <Badge className={
+                                    contact.status === 'new' ? 'bg-blue-500 text-white' :
+                                    contact.status === 'in_progress' ? 'bg-amber-500 text-white' :
+                                    contact.status === 'resolved' ? 'bg-green-500 text-white' :
+                                    'bg-gray-500 text-white'
+                                  }>{contact.status}</Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{contact.email}</span>
+                                  {contact.phone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{contact.phone}</span>}
+                                  <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(contact.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-2">{contact.message}</p>
+                              </div>
+                              <div className="flex flex-col gap-2 sm:items-end">
+                                <select
+                                  value={contact.status}
+                                  onChange={(e) => updateContactStatus(contact.id, e.target.value)}
+                                  className="px-2 py-1 rounded-md border border-input bg-background text-xs"
+                                >
+                                  <option value="new">New</option>
+                                  <option value="in_progress">In Progress</option>
+                                  <option value="resolved">Resolved</option>
+                                  <option value="closed">Closed</option>
+                                </select>
+                                <div className="flex gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => setSelectedContact(contact)}><Eye className="w-4 h-4" /></Button>
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => deleteContact(contact.id)}><Trash2 className="w-4 h-4" /></Button>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Enquiry Detail Modal */}
+              {selectedEnquiry && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Enquiry Details</CardTitle>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedEnquiry(null)}><X className="w-4 h-4" /></Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div><Label className="font-semibold">Name:</Label><p>{selectedEnquiry.name}</p></div>
+                      <div><Label className="font-semibold">Email:</Label><p>{selectedEnquiry.email}</p></div>
+                      <div><Label className="font-semibold">Phone:</Label><p>{selectedEnquiry.phone}</p></div>
+                      <div><Label className="font-semibold">Course:</Label><p>{selectedEnquiry.course}</p></div>
+                      <div><Label className="font-semibold">Qualification:</Label><p>{selectedEnquiry.qualification || 'N/A'}</p></div>
+                      <div><Label className="font-semibold">Message:</Label><p className="text-muted-foreground">{selectedEnquiry.message || 'N/A'}</p></div>
+                      <div><Label className="font-semibold">Submitted:</Label><p>{new Date(selectedEnquiry.created_at).toLocaleString('en-IN')}</p></div>
+                      <div className="pt-2 flex gap-2">
+                        <a href={`mailto:${selectedEnquiry.email}`}><Button size="sm" variant="outline"><Mail className="w-4 h-4 mr-1" />Email</Button></a>
+                        <a href={`tel:${selectedEnquiry.phone}`}><Button size="sm" variant="outline"><Phone className="w-4 h-4 mr-1" />Call</Button></a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Contact Detail Modal */}
+              {selectedContact && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Contact Details</CardTitle>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedContact(null)}><X className="w-4 h-4" /></Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div><Label className="font-semibold">Name:</Label><p>{selectedContact.name}</p></div>
+                      <div><Label className="font-semibold">Email:</Label><p>{selectedContact.email}</p></div>
+                      {selectedContact.phone && <div><Label className="font-semibold">Phone:</Label><p>{selectedContact.phone}</p></div>}
+                      {selectedContact.subject && <div><Label className="font-semibold">Subject:</Label><p>{selectedContact.subject}</p></div>}
+                      <div><Label className="font-semibold">Message:</Label><p className="text-muted-foreground">{selectedContact.message}</p></div>
+                      <div><Label className="font-semibold">Submitted:</Label><p>{new Date(selectedContact.created_at).toLocaleString('en-IN')}</p></div>
+                      <div className="pt-2 flex gap-2">
+                        <a href={`mailto:${selectedContact.email}`}><Button size="sm" variant="outline"><Mail className="w-4 h-4 mr-1" />Email</Button></a>
+                        {selectedContact.phone && <a href={`tel:${selectedContact.phone}`}><Button size="sm" variant="outline"><Phone className="w-4 h-4 mr-1" />Call</Button></a>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               {/* Admin Guide */}
               {activeSection === 'guide' && (
                 <Card>
@@ -1095,6 +1413,12 @@ export default function AdminPage() {
 
                     <h3>Testimonials</h3>
                     <p>Manage customer reviews. Approve/disapprove to control which ones appear on the site.</p>
+
+                    <h3>Degree Enquiries</h3>
+                    <p>View all student admission enquiries submitted through the Degrees page counselling form. Update status (New, Contacted, Enrolled, Rejected, Closed) and filter by status. New enquiries show a red badge count in the sidebar.</p>
+
+                    <h3>Contact Messages</h3>
+                    <p>View all messages submitted through the Contact page form. Update status (New, In Progress, Resolved, Closed) to track follow-ups.</p>
 
                     <h3>Tips</h3>
                     <ul>
