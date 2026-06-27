@@ -1,47 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabase-server';
-
-const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-
-async function checkAuth(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) return false;
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return false;
-
-  // Check against default password
-  if (token === DEFAULT_PASSWORD) return true;
-
-  // Check against database-stored password
-  try {
-    const { data, error } = await supabaseServer
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'admin_password')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Auth check error:', error);
-      return false;
-    }
-
-    if (data?.value && token === data.value) {
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    console.error('Auth check exception:', err);
-    return false;
-  }
-}
+import { checkAuth, supabaseAdmin } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabaseAdmin
     .from('site_settings')
     .select('key, value')
     .order('key');
@@ -59,8 +25,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -71,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Key is required' }, { status: 400 });
     }
 
-    const { error } = await supabaseServer
+    const { error } = await supabaseAdmin
       .from('site_settings')
       .upsert({ key, value: value || '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
@@ -86,21 +53,29 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const body = await request.json();
-    const { key, value } = body;
+    const { settings } = body;
 
-    if (!key) {
-      return NextResponse.json({ error: 'Key is required' }, { status: 400 });
+    if (!settings || typeof settings !== 'object') {
+      return NextResponse.json({ error: 'Settings object is required' }, { status: 400 });
     }
 
-    const { error } = await supabaseServer
+    // Upsert each setting
+    const updates = Object.entries(settings).map(([key, value]) => ({
+      key,
+      value: String(value || ''),
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabaseAdmin
       .from('site_settings')
-      .upsert({ key, value: value || '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      .upsert(updates, { onConflict: 'key' });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -113,8 +88,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -124,7 +100,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Key is required' }, { status: 400 });
   }
 
-  const { error } = await supabaseServer
+  const { error } = await supabaseAdmin
     .from('site_settings')
     .delete()
     .eq('key', key);

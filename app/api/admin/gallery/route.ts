@@ -1,43 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabase-server';
-
-const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-
-async function checkAuth(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) return false;
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return false;
-
-  // Check against default password
-  if (token === DEFAULT_PASSWORD) return true;
-
-  // Check against database-stored password
-  try {
-    const { data, error } = await supabaseServer
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'admin_password')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Auth check error:', error);
-      return false;
-    }
-
-    if (data?.value && token === data.value) {
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    console.error('Auth check exception:', err);
-    return false;
-  }
-}
+import { checkAuth, supabaseAdmin } from '@/lib/admin-auth';
 
 export async function GET() {
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabaseAdmin
     .from('gallery_images')
     .select('*')
     .order('sort_order');
@@ -50,8 +15,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -62,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseAdmin
       .from('gallery_images')
       .insert({
         url,
@@ -87,8 +53,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -99,7 +66,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseAdmin
       .from('gallery_images')
       .update(updates)
       .eq('id', id)
@@ -117,8 +84,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -128,7 +96,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });
   }
 
-  const { error } = await supabaseServer
+  const { error } = await supabaseAdmin
     .from('gallery_images')
     .delete()
     .eq('id', id);

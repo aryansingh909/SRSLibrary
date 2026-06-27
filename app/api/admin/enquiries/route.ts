@@ -1,51 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
-
-const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-
-async function checkAuth(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) return false;
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return false;
-
-  // Check against default password
-  if (token === DEFAULT_PASSWORD) return true;
-
-  // Check against database-stored password
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'admin_password')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Auth check error:', error);
-      return false;
-    }
-
-    if (data?.value && token === data.value) {
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    console.error('Auth check exception:', err);
-    return false;
-  }
-}
+import { checkAuth, supabaseAdmin } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    console.log('[GET] Auth failed:', authResult.error);
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -84,8 +44,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    console.log('[PUT] Auth failed:', authResult.error);
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -128,8 +90,10 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    console.log('[DELETE] Auth failed:', authResult.error);
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

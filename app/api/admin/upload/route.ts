@@ -1,44 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabase-server';
-
-const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-
-async function checkAuth(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) return false;
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return false;
-
-  // Check against default password
-  if (token === DEFAULT_PASSWORD) return true;
-
-  // Check against database-stored password
-  try {
-    const { data, error } = await supabaseServer
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'admin_password')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Auth check error:', error);
-      return false;
-    }
-
-    if (data?.value && token === data.value) {
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    console.error('Auth check exception:', err);
-    return false;
-  }
-}
+import { checkAuth, supabaseAdmin } from '@/lib/admin-auth';
 
 export async function POST(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    console.log('[Upload POST] Auth failed:', authResult.error);
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -69,7 +36,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const { data, error } = await supabaseServer.storage
+    const { data, error } = await supabaseAdmin.storage
       .from('images')
       .upload(fileName, buffer, {
         contentType: file.type,
@@ -81,7 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const { data: urlData } = supabaseServer.storage
+    const { data: urlData } = supabaseAdmin.storage
       .from('images')
       .getPublicUrl(data.path);
 
@@ -96,8 +63,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await checkAuth(request);
+  if (!authResult.authorized) {
+    console.log('[Upload DELETE] Auth failed:', authResult.error);
+    return NextResponse.json({ error: authResult.error || 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -107,7 +76,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 });
     }
 
-    const { error } = await supabaseServer.storage
+    const { error } = await supabaseAdmin.storage
       .from('images')
       .remove([path]);
 
