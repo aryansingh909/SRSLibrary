@@ -102,16 +102,27 @@ export async function PUT(request: NextRequest) {
     else if (type === 'membership') table = 'library_memberships';
     else return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
 
+    console.log(`[PUT] Updating ${table} id=${id} to status=${status}`);
+
+    const updateData: Record<string, string> = { status };
+    updateData.updated_at = new Date().toISOString();
+
     const { data, error } = await supabaseAdmin
       .from(table)
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error(`[PUT] Error updating ${table}:`, error);
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+    }
+
+    console.log(`[PUT] Successfully updated ${table}:`, data);
     return NextResponse.json({ success: true, record: data });
-  } catch {
+  } catch (err) {
+    console.error('[PUT] Exception:', err);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }
@@ -135,8 +146,15 @@ export async function DELETE(request: NextRequest) {
   else if (type === 'membership') table = 'library_memberships';
   else return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
 
-  const { error } = await supabaseAdmin.from(table).delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  console.log(`[DELETE] Deleting from ${table} id=${id}`);
 
+  const { error } = await supabaseAdmin.from(table).delete().eq('id', id);
+
+  if (error) {
+    console.error(`[DELETE] Error deleting from ${table}:`, error);
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+  }
+
+  console.log(`[DELETE] Successfully deleted from ${table}`);
   return NextResponse.json({ success: true });
 }

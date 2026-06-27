@@ -99,8 +99,8 @@ export default function EnquirePage() {
     }
   }, []);
 
-  const loadAllData = async () => {
-    setLoading(true);
+  const loadAllData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/admin/enquiries', {
         headers: getAuthHeaders(),
@@ -119,9 +119,9 @@ export default function EnquirePage() {
       setContacts(data.contacts || []);
       setMemberships(data.memberships || []);
     } catch (err) {
-      toast.error('Failed to load data');
+      if (!silent) toast.error('Failed to load data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -147,92 +147,139 @@ export default function EnquirePage() {
   };
 
   const updateEnquiryStatus = async (id: string, status: string) => {
-    const res = await fetch('/api/admin/enquiries', {
-      method: 'PUT',
-      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'enquiry', id, status }),
-    });
-    if (res.ok) {
-      setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
-      if (selectedEnquiry?.id === id) setSelectedEnquiry(prev => prev ? { ...prev, status } : prev);
-      toast.success('Status updated');
-    } else {
-      toast.error('Failed to update status');
+    try {
+      const res = await fetch('/api/admin/enquiries', {
+        method: 'PUT',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'enquiry', id, status }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update local state immediately for responsiveness
+        setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
+        if (selectedEnquiry?.id === id) setSelectedEnquiry(prev => prev ? { ...prev, status } : prev);
+        toast.success('Status updated');
+        // Also refresh from server to ensure consistency (silent)
+        loadAllData(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Failed to update status (${res.status})`);
+        loadAllData(true);
+      }
+    } catch (err) {
+      toast.error('Network error - failed to update status');
     }
   };
 
   const updateContactStatus = async (id: string, status: string) => {
-    const res = await fetch('/api/admin/enquiries', {
-      method: 'PUT',
-      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'contact', id, status }),
-    });
-    if (res.ok) {
-      setContacts(prev => prev.map(c => c.id === id ? { ...c, status } : c));
-      if (selectedContact?.id === id) setSelectedContact(prev => prev ? { ...prev, status } : prev);
-      toast.success('Status updated');
-    } else {
-      toast.error('Failed to update status');
+    try {
+      const res = await fetch('/api/admin/enquiries', {
+        method: 'PUT',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'contact', id, status }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContacts(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+        if (selectedContact?.id === id) setSelectedContact(prev => prev ? { ...prev, status } : prev);
+        toast.success('Status updated');
+        loadAllData(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Failed to update status (${res.status})`);
+        loadAllData(true);
+      }
+    } catch (err) {
+      toast.error('Network error - failed to update status');
     }
   };
 
   const updateMembershipStatus = async (id: string, status: string) => {
-    const res = await fetch('/api/admin/enquiries', {
-      method: 'PUT',
-      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'membership', id, status }),
-    });
-    if (res.ok) {
-      setMemberships(prev => prev.map(m => m.id === id ? { ...m, status } : m));
-      if (selectedMembership?.id === id) setSelectedMembership(prev => prev ? { ...prev, status } : prev);
-      toast.success('Status updated');
-    } else {
-      toast.error('Failed to update status');
+    try {
+      const res = await fetch('/api/admin/enquiries', {
+        method: 'PUT',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'membership', id, status }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMemberships(prev => prev.map(m => m.id === id ? { ...m, status } : m));
+        if (selectedMembership?.id === id) setSelectedMembership(prev => prev ? { ...prev, status } : prev);
+        toast.success('Status updated');
+        loadAllData(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Failed to update status (${res.status})`);
+        loadAllData(true);
+      }
+    } catch (err) {
+      toast.error('Network error - failed to update status');
     }
   };
 
   const deleteEnquiry = async (id: string) => {
     if (!confirm('Delete this enquiry?')) return;
-    const res = await fetch(`/api/admin/enquiries?type=enquiry&id=${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (res.ok) {
-      setEnquiries(prev => prev.filter(e => e.id !== id));
-      if (selectedEnquiry?.id === id) setSelectedEnquiry(null);
-      toast.success('Enquiry deleted');
-    } else {
-      toast.error('Failed to delete');
+    try {
+      const res = await fetch(`/api/admin/enquiries?type=enquiry&id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        setEnquiries(prev => prev.filter(e => e.id !== id));
+        if (selectedEnquiry?.id === id) setSelectedEnquiry(null);
+        toast.success('Enquiry deleted');
+        loadAllData(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Failed to delete (${res.status})`);
+        loadAllData(true);
+      }
+    } catch (err) {
+      toast.error('Network error - failed to delete');
     }
   };
 
   const deleteContact = async (id: string) => {
     if (!confirm('Delete this contact request?')) return;
-    const res = await fetch(`/api/admin/enquiries?type=contact&id=${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (res.ok) {
-      setContacts(prev => prev.filter(c => c.id !== id));
-      if (selectedContact?.id === id) setSelectedContact(null);
-      toast.success('Contact deleted');
-    } else {
-      toast.error('Failed to delete');
+    try {
+      const res = await fetch(`/api/admin/enquiries?type=contact&id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        setContacts(prev => prev.filter(c => c.id !== id));
+        if (selectedContact?.id === id) setSelectedContact(null);
+        toast.success('Contact deleted');
+        loadAllData(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Failed to delete (${res.status})`);
+        loadAllData(true);
+      }
+    } catch (err) {
+      toast.error('Network error - failed to delete');
     }
   };
 
   const deleteMembership = async (id: string) => {
     if (!confirm('Delete this membership record?')) return;
-    const res = await fetch(`/api/admin/enquiries?type=membership&id=${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (res.ok) {
-      setMemberships(prev => prev.filter(m => m.id !== id));
-      if (selectedMembership?.id === id) setSelectedMembership(null);
-      toast.success('Membership deleted');
-    } else {
-      toast.error('Failed to delete');
+    try {
+      const res = await fetch(`/api/admin/enquiries?type=membership&id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        setMemberships(prev => prev.filter(m => m.id !== id));
+        if (selectedMembership?.id === id) setSelectedMembership(null);
+        toast.success('Membership deleted');
+        loadAllData(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Failed to delete (${res.status})`);
+        loadAllData(true);
+      }
+    } catch (err) {
+      toast.error('Network error - failed to delete');
     }
   };
 
@@ -310,7 +357,7 @@ export default function EnquirePage() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={loadAllData} disabled={loading} className="h-8">
+              <Button variant="outline" size="sm" onClick={() => loadAllData()} disabled={loading} className="h-8">
                 <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
