@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer } from '@/lib/supabase-server';
 
 const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
@@ -8,7 +8,7 @@ async function checkAuth(request: NextRequest): Promise<boolean> {
   if (!authHeader) return false;
   const token = authHeader.replace('Bearer ', '');
   if (token === DEFAULT_PASSWORD) return true;
-  const { data } = await supabase.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
+  const { data } = await supabaseServer.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
   return !!(data?.value && token === data.value);
 }
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const approvedOnly = searchParams.get('approved_only') === 'true';
 
-  let query = supabase
+  let query = supabaseServer
     .from('reviews')
     .select('*')
     .order('created_at', { ascending: false });
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name and review are required' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('reviews')
       .insert({
         name,
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('reviews')
       .update(updates)
       .eq('id', id)
@@ -118,7 +118,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('reviews')
     .delete()
     .eq('id', id);

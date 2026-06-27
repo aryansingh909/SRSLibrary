@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer } from '@/lib/supabase-server';
 
 const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
@@ -8,7 +8,7 @@ async function checkAuth(request: NextRequest): Promise<boolean> {
   if (!authHeader) return false;
   const token = authHeader.replace('Bearer ', '');
   if (token === DEFAULT_PASSWORD) return true;
-  const { data } = await supabase.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
+  const { data } = await supabaseServer.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
   return !!(data?.value && token === data.value);
 }
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from('site_settings')
     .select('key, value')
     .order('key');
@@ -47,12 +47,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Key is required' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from('site_settings')
-      .upsert(
-        { key, value: value || '', updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      );
+      .upsert({ key, value: value || '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -71,21 +68,15 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { settings } = body;
+    const { key, value } = body;
 
-    if (!settings || typeof settings !== 'object') {
-      return NextResponse.json({ error: 'Settings object is required' }, { status: 400 });
+    if (!key) {
+      return NextResponse.json({ error: 'Key is required' }, { status: 400 });
     }
 
-    const updates = Object.entries(settings).map(([key, value]) => ({
-      key,
-      value: String(value || ''),
-      updated_at: new Date().toISOString(),
-    }));
-
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from('site_settings')
-      .upsert(updates, { onConflict: 'key' });
+      .upsert({ key, value: value || '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -95,4 +86,28 @@ export async function PUT(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!await checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const key = searchParams.get('key');
+
+  if (!key) {
+    return NextResponse.json({ error: 'Key is required' }, { status: 400 });
+  }
+
+  const { error } = await supabaseServer
+    .from('site_settings')
+    .delete()
+    .eq('key', key);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }

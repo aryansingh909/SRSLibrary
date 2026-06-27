@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer } from '@/lib/supabase-server';
 
 const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
@@ -8,7 +8,7 @@ async function checkAuth(request: NextRequest): Promise<boolean> {
   if (!authHeader) return false;
   const token = authHeader.replace('Bearer ', '');
   if (token === DEFAULT_PASSWORD) return true;
-  const { data } = await supabase.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
+  const { data } = await supabaseServer.from('site_settings').select('value').eq('key', 'admin_password').maybeSingle();
   return !!(data?.value && token === data.value);
 }
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from('membership_plans')
     .select('*')
     .order('sort_order');
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('membership_plans')
       .insert({
         plan_key,
@@ -84,7 +84,7 @@ export async function PUT(request: NextRequest) {
 
     updates.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('membership_plans')
       .update(updates)
       .eq('id', id)
@@ -113,7 +113,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('membership_plans')
     .delete()
     .eq('id', id);
