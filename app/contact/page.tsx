@@ -69,9 +69,9 @@ export default function ContactPage() {
             <div className="space-y-5">
               <h2 className="text-2xl font-bold text-foreground">Get in Touch</h2>
               {[
-                { icon: Phone, title: 'Phone', lines: ['+91 99999 99999', 'Mon–Sat, 8 AM – 8 PM'], href: 'tel:+919999999999', color: 'bg-blue-600' },
-                { icon: Mail, title: 'Email', lines: ['hello@studynest.in', 'We reply within 24 hours'], href: 'mailto:hello@studynest.in', color: 'bg-green-600' },
-                { icon: MessageCircle, title: 'WhatsApp', lines: ['+91 99999 99999', 'Quick responses'], href: 'https://wa.me/919999999999', color: 'bg-[#25D366]' },
+                { icon: Phone, title: 'Phone', lines: ['+91 9415660616', 'Mon–Sat, 8 AM – 8 PM'], href: 'tel:+91 8736974085', color: 'bg-blue-600' },
+                { icon: Mail, title: 'Email', lines: ['Krishnakumarsingh909@gmail.com', 'We reply within 24 hours'], href: 'mailto:hello@studynest.in', color: 'bg-green-600' },
+                { icon: MessageCircle, title: 'WhatsApp', lines: ['+91 9415660616', 'Quick responses'], href: 'https://wa.me/919415660616', color: 'bg-[#25D366]' },
                 { icon: MapPin, title: 'Address', lines: ['123, Main Market Road', 'Your City, State — 000000'], href: '#map', color: 'bg-rose-600' },
                 { icon: Clock, title: 'Library Hours', lines: ['Monday to Saturday', '7:00 AM — 10:00 PM'], href: '#', color: 'bg-amber-600' },
               ].map(({ icon: Icon, title, lines, href, color }) => (
@@ -90,7 +90,7 @@ export default function ContactPage() {
               <div className="p-5 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/30">
                 <p className="font-semibold text-foreground mb-2">Chat on WhatsApp</p>
                 <p className="text-sm text-muted-foreground mb-3">Get instant answers to your questions</p>
-                <a href="https://wa.me/919999999999?text=Hello%2C%20I%20want%20to%20know%20more%20about%20your%20services." target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/919415660616?text=Hello%2C%20I%20want%20to%20know%20more%20about%20your%20services." target="_blank" rel="noopener noreferrer">
                   <Button className="w-full rounded-xl bg-[#25D366] hover:bg-[#20BD5C] text-white">
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Open WhatsApp
@@ -169,12 +169,12 @@ export default function ContactPage() {
               {/* Map */}
               <div id="map" className="mt-6 rounded-2xl overflow-hidden border border-border shadow-sm h-[400px]">
                 <iframe
-                  src={settings.google_maps_embed_url || 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3502.0!2d77.2!3d28.6!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDM2JzAwLjAiTiA3N8KwMTInMDAuMCJF!5e0!3m2!1sen!2sin!4v1620000000000!5m2!1sen!2sin'}
+                  src={settings.google_maps_embed_url || 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3598.6653282642355!2d82.48075357485!3d25.582798915975534!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x399019007038cfe9%3A0x74a143c5f33ac72b!2sSRS%20Digital%20Library!5e0!3m2!1sen!2sin!4v1782629105042!5m2!1sen!2sin'}
                   className="w-full h-full"
                   style={{ border: 0 }}
                   loading="lazy"
                   scrolling="no"
-                  title="StudyNest Location"
+                  title="SRS Library Location"
                 />
               </div>
             </div>
