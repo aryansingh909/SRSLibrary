@@ -30,8 +30,9 @@ export default function PortalLoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        document.cookie = `portal_session=${data.token}; path=/; max-age=1800; SameSite=Strict`;
+        // Cookie is set by the server response - just redirect
         router.push('/library-management/dashboard');
+        router.refresh();
       } else {
         setError(data.error || 'Invalid credentials');
       }

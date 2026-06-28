@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -36,34 +36,46 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      // Skip auth check on login page
-      if (pathname === '/library-management') {
-        setLoading(false);
-        return;
-      }
+  const checkAuth = useCallback(async () => {
+    // Skip auth check on login page
+    if (pathname === '/library-management') {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const res = await fetch('/api/portal/auth');
-        if (res.ok) {
-          setAuthenticated(true);
-        } else {
-          router.push('/library-management');
-        }
-      } catch {
-        router.push('/library-management');
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      const res = await fetch('/api/portal/auth', {
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
 
-    checkAuth();
+      if (res.ok) {
+        setAuthenticated(true);
+        setLoading(false);
+      } else {
+        setAuthenticated(false);
+        router.replace('/library-management');
+      }
+    } catch {
+      setAuthenticated(false);
+      router.replace('/library-management');
+    } finally {
+      setLoading(false);
+    }
   }, [pathname, router]);
 
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   const handleLogout = async () => {
-    await fetch('/api/portal/auth', { method: 'DELETE' });
-    router.push('/library-management');
+    try {
+      await fetch('/api/portal/auth', { method: 'DELETE' });
+    } catch {
+      // ignore
+    }
+    router.replace('/library-management');
+    router.refresh();
   };
 
   // Login page - no layout wrapper
@@ -82,7 +94,11 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
 
   // Not authenticated
   if (!authenticated) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
   }
 
   return (

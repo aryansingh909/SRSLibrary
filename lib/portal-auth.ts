@@ -15,24 +15,14 @@ const SESSION_COOKIE_NAME = 'portal_session';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
-interface Session {
-  createdAt: number;
-  expiresAt: number;
-}
-
 interface LoginAttempt {
   count: number;
   firstAttempt: number;
   lockedUntil?: number;
 }
 
-// In-memory rate limiting (resets on server restart)
+// In-memory rate limiting (per-instance, acceptable for brute force protection)
 const loginAttempts = new Map<string, LoginAttempt>();
-
-export function hashPassword(password: string): string {
-  // Simple hash for demonstration - in production use bcrypt
-  return Buffer.from(password).toString('base64');
-}
 
 export async function getPortalPassword(): Promise<string> {
   const { data } = await supabaseAdmin
@@ -65,18 +55,15 @@ export function checkRateLimit(ip: string): { allowed: boolean; remainingAttempt
     return { allowed: true, remainingAttempts: MAX_LOGIN_ATTEMPTS };
   }
 
-  // Check if locked out
   if (attempt.lockedUntil && now < attempt.lockedUntil) {
     return { allowed: false, lockedUntil: attempt.lockedUntil };
   }
 
-  // Reset if lockout expired
   if (attempt.lockedUntil && now >= attempt.lockedUntil) {
     loginAttempts.delete(ip);
     return { allowed: true, remainingAttempts: MAX_LOGIN_ATTEMPTS };
   }
 
-  // Reset if outside window
   if (now - attempt.firstAttempt > LOCKOUT_DURATION_MS) {
     loginAttempts.delete(ip);
     return { allowed: true, remainingAttempts: MAX_LOGIN_ATTEMPTS };
@@ -92,7 +79,6 @@ export function recordFailedAttempt(ip: string): void {
   if (!attempt) {
     loginAttempts.set(ip, { count: 1, firstAttempt: now });
   } else if (attempt.lockedUntil && now < attempt.lockedUntil) {
-    // Already locked, don't increment
     return;
   } else {
     attempt.count++;
@@ -106,85 +92,96 @@ export function clearAttempts(ip: string): void {
   loginAttempts.delete(ip);
 }
 
-export function createSession(): { token: string; expiresAt: number } {
+// Database-backed session storage (works in serverless)
+export async function createSession(ip?: string): Promise<{ token: string; expiresAt: number }> {
   const now = Date.now();
   const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
   const expiresAt = now + SESSION_DURATION_MS;
 
-  // Store session (in production, use Redis or database)
-  sessions.set(token, { createdAt: now, expiresAt });
+  const { error } = await supabaseAdmin
+    .from('portal_sessions')
+    .insert({
+      token,
+      expires_at: new Date(expiresAt).toISOString(),
+      ip: ip || null,
+    });
+
+  if (error) {
+    console.error('[Portal Auth] Failed to create session:', error.message);
+  }
 
   return { token, expiresAt };
 }
 
-// In-memory sessions (resets on server restart)
-const sessions = new Map<string, Session>();
+export async function validateSession(token: string): Promise<boolean> {
+  if (!token) return false;
 
-export function validateSession(token: string): boolean {
-  const session = sessions.get(token);
-  if (!session) return false;
+  const { data, error } = await supabaseAdmin
+    .from('portal_sessions')
+    .select('expires_at')
+    .eq('token', token)
+    .maybeSingle();
 
-  const now = Date.now();
-  if (now > session.expiresAt) {
-    sessions.delete(token);
+  if (error || !data) {
+    return false;
+  }
+
+  const expiresAt = new Date(data.expires_at).getTime();
+  if (Date.now() > expiresAt) {
+    // Expired - clean up
+    await supabaseAdmin.from('portal_sessions').delete().eq('token', token);
     return false;
   }
 
   return true;
 }
 
-export function endSession(token: string): void {
-  sessions.delete(token);
+export async function endSession(token: string): Promise<void> {
+  if (!token) return;
+  await supabaseAdmin.from('portal_sessions').delete().eq('token', token);
 }
 
-export function extendSession(token: string): number | null {
-  const session = sessions.get(token);
-  if (!session) return null;
+export async function extendSession(token: string): Promise<number | null> {
+  if (!token) return null;
 
-  const now = Date.now();
-  if (now > session.expiresAt) {
-    sessions.delete(token);
-    return null;
-  }
+  const newExpiresAt = Date.now() + SESSION_DURATION_MS;
 
-  const newExpiresAt = now + SESSION_DURATION_MS;
-  session.expiresAt = newExpiresAt;
+  const { error } = await supabaseAdmin
+    .from('portal_sessions')
+    .update({ expires_at: new Date(newExpiresAt).toISOString() })
+    .eq('token', token);
+
+  if (error) return null;
 
   return newExpiresAt;
 }
 
 export async function authenticatePortal(password: string, ip: string): Promise<{ success: boolean; error?: string; token?: string }> {
-  // Check rate limit
   const rateCheck = checkRateLimit(ip);
   if (!rateCheck.allowed) {
     const remainingMinutes = Math.ceil(((rateCheck.lockedUntil || 0) - Date.now()) / 60000);
     return { success: false, error: `Too many failed attempts. Try again in ${remainingMinutes} minutes.` };
   }
 
-  // Get stored password
   const storedPassword = await getPortalPassword();
 
-  // Validate password
   if (password !== storedPassword) {
     recordFailedAttempt(ip);
     return { success: false, error: 'Invalid credentials' };
   }
 
-  // Success - clear rate limit and create session
   clearAttempts(ip);
-  const { token } = createSession();
+  const { token } = await createSession(ip);
 
   return { success: true, token };
 }
 
 export async function checkPortalAuth(request: NextRequest): Promise<{ authorized: boolean; token?: string }> {
-  // Check Authorization header
   const authHeader = request.headers.get('authorization');
   const headerToken = authHeader?.replace('Bearer ', '');
 
-  // Check cookie as fallback
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
@@ -194,7 +191,7 @@ export async function checkPortalAuth(request: NextRequest): Promise<{ authorize
     return { authorized: false };
   }
 
-  const valid = validateSession(token);
+  const valid = await validateSession(token);
   return { authorized: valid, token: valid ? token : undefined };
 }
 

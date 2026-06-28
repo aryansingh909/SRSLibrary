@@ -18,13 +18,14 @@ export async function POST(request: NextRequest) {
     const ip = getClientIP(request);
     const result = await authenticatePortal(password, ip);
 
-    if (result.success) {
+    if (result.success && result.token) {
       const response = NextResponse.json({ success: true, token: result.token });
-      response.cookies.set('portal_session', result.token!, {
+      response.cookies.set('portal_session', result.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 1800 // 30 minutes
+        sameSite: 'lax',
+        maxAge: 1800, // 30 minutes
+        path: '/',
       });
       return response;
     }
@@ -49,10 +50,16 @@ export async function DELETE(request: NextRequest) {
   const auth = await checkPortalAuth(request);
 
   if (auth.token) {
-    endSession(auth.token);
+    await endSession(auth.token);
   }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.delete('portal_session');
+  response.cookies.set('portal_session', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 0,
+    path: '/',
+  });
   return response;
 }
